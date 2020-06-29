@@ -153,6 +153,23 @@ public class NWTCPSocket: NSObject, RawTCPSocketProtocol {
         }
     }
 
+    public func readData(max:Int){
+        guard !cancelled else {
+                   return
+               }
+
+               connection!.readMinimumLength(1, maximumLength: max) { data, error in
+                   guard error == nil else {
+                       DDLogError("NWTCPSocket got an error when reading data: \(String(describing: error))")
+                       self.queueCall {
+                           self.disconnect()
+                       }
+                       return
+                   }
+
+                   self.readCallback(data: data)
+               }
+    }
     /**
      Read specific length of data from the socket.
      
