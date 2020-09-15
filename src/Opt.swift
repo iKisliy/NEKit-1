@@ -1,6 +1,7 @@
 import Foundation
 
 public struct Opt {
+    
     public static var MAXNWTCPSocketReadDataSize = 1 << 16 //128 * 1024
 
     // This is only used in finding the end of HTTP header (as of now). There is no limit on the length of http header, but Apache set it to 8KB
