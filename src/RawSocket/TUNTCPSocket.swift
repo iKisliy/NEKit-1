@@ -97,23 +97,27 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
      - warning: This should only be called after the last write is finished, i.e., `delegate?.didWriteData()` is called.
      */
     public func write(data: Data) {
+        let data_size = data.count
         remainWriteLength = data.count
         
-        guard data_size > UInt16.max else {
+        guard data_size > 30000 else {
             tsSocket.writeData(data)
             return
         }
         
         var idx = 0
         while idx < data_size {
-                var end = (idx + UInt16.max)
+                var end = (idx + 30000)
                 if end > data_size{
                         end = data_size
                 }
             let slice = data[idx ..< end]
             tsSocket.writeData(slice)
             idx = end
+            NSLog("--------->slice write[\(slice.count)]")
         }
+        
+        NSLog("--------->total len write[\(data_size)]")
     }
 
     /**
