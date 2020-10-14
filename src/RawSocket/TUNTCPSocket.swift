@@ -98,7 +98,22 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
      */
     public func write(data: Data) {
         remainWriteLength = data.count
-        tsSocket.writeData(data)
+        
+        guard data_size > UInt16.max else {
+            tsSocket.writeData(data)
+            return
+        }
+        
+        var idx = 0
+        while idx < data_size {
+                var end = (idx + UInt16.max)
+                if end > data_size{
+                        end = data_size
+                }
+            let slice = data[idx ..< end]
+            tsSocket.writeData(slice)
+            idx = end
+        }
     }
 
     /**
