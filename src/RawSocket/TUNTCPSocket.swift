@@ -8,7 +8,13 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
     fileprivate let tsSocket: TSTCPSocket
     fileprivate var reading = false
     fileprivate var pendingReadData: Data = Data()
+        fileprivate var remainWriteData: Data = Data()
     fileprivate var remainWriteLength: Int = 0
+    fileprivate var sliceSize: Int = 0
+        var writeSig = DispatchSemaphore(value: 1)
+//        var writeLock = NSLock()
+        static var  TID:Int = 1
+    fileprivate var writeQueue = DispatchQueue.init(label: "TCP Data Write", qos: .default)
     fileprivate var closeAfterWriting = false
 
     fileprivate var scanner: StreamScanner?
@@ -23,6 +29,8 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
     public init(socket: TSTCPSocket) {
         tsSocket = socket
         tsSocket.delegate = self
+        TUNTCPSocket.TID += 1
+        NSLog("---------> Create new socket [\(TUNTCPSocket.TID)] th[\(Thread.current)]")
     }
 
     // MARK: RawTCPSocketProtocol implementation
@@ -96,29 +104,64 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
      - parameter data: Data to send.
      - warning: This should only be called after the last write is finished, i.e., `delegate?.didWriteData()` is called.
      */
-    public func write(data: Data) {
-        let data_size = data.count
-        remainWriteLength = data.count
-        
-        guard data_size > 30000 else {
-            tsSocket.writeData(data)
-            return
-        }
-        
-        var idx = 0
-        while idx < data_size {
-                var end = (idx + 30000)
-                if end > data_size{
-                        end = data_size
+    
+        func splitWrite(){
+                
+                self.writeQueue.async {
+                        while self.remainWriteData.count > 0{
+                                NSLog("--------->[\(TUNTCPSocket.TID)] split write and wait th[\(Thread.current)]")
+                                self.writeSig.wait()
+                                let buf_size = Int(self.tsSocket.writeBufSize())
+                                if buf_size == 0{
+                                        NSLog("--------->[\(TUNTCPSocket.TID)] buffer is 0 th[\(Thread.current)]")
+                                        continue
+                                }
+                                NSLog("--------->[\(TUNTCPSocket.TID)] get buffer[\(buf_size)]")
+                                let data_size = self.remainWriteData.count
+                                if buf_size > data_size{
+                                        self.queueCall{self.tsSocket.writeData(self.remainWriteData)}
+                                        self.remainWriteLength = data_size
+                                        self.remainWriteData.removeAll()
+                                        NSLog("--------->[\(TUNTCPSocket.TID)] the last slice[\(data_size)]")
+                                        return
+                                }
+                                NSLog("--------->[\(TUNTCPSocket.TID)] too many slice[\(data_size)]")
+                                let slice = self.remainWriteData[0 ..< buf_size]
+                                self.remainWriteData = self.remainWriteData[buf_size ..< data_size]
+                                self.remainWriteLength = buf_size
+                                self.queueCall{self.tsSocket.writeData(slice)}
+                                NSLog("--------->[\(TUNTCPSocket.TID)] write slice again and remain[\(self.remainWriteData.count)]")
+                        }
                 }
-            let slice = data[idx ..< end]
-            tsSocket.writeData(slice)
-            idx = end
-            NSLog("--------->slice write[\(slice.count)]")
         }
         
-        NSLog("--------->total len write[\(data_size)]")
-    }
+        public func write(data: Data) {
+                let data_size = data.count
+                let buf_size = Int(self.tsSocket.writeBufSize())
+                NSLog("--------->[\(TUNTCPSocket.TID)] start to write[\(data_size)] buffer is[\(buf_size)] remain[\(self.remainWriteLength)] th[\(Thread.current)]")
+                
+                if buf_size > data_size{
+                        self.remainWriteLength = data_size
+                        self.tsSocket.writeData(data)
+                        return
+                }
+                
+                NSLog("--------->[\(TUNTCPSocket.TID)] ****** need to split write [\(data_size)] buffer is[\(buf_size)]")
+                if buf_size == 0{
+                        NSLog("--------->[\(TUNTCPSocket.TID)] xxxxxx must be err buf_size is 0")
+                        self.remainWriteData.append(data)
+                        return
+                }
+                
+                
+                let slice = data[0 ..< buf_size]
+                let remain = data[buf_size ..< data_size]
+                self.remainWriteData.append(remain)
+                self.remainWriteLength = buf_size
+                self.tsSocket.writeData(slice)
+                self.splitWrite()
+                NSLog("--------->[\(TUNTCPSocket.TID)] split write remaind[\(remain.count)]")
+        }
 
     /**
      Read data from the socket.
@@ -211,7 +254,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
     }
 
     fileprivate func checkStatus() {
-        if closeAfterWriting && remainWriteLength == 0 {
+        if closeAfterWriting && self.remainWriteLength == 0 {
             forceDisconnect()
         }
     }
@@ -246,14 +289,22 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
         }
     }
 
-    open func didWriteData(_ length: Int, from: TSTCPSocket) {
-        queueCall {
-            self.remainWriteLength -= length
-            if self.remainWriteLength <= 0 {
-
-                self.delegate?.didWrite(data: nil, by: self)
-                self.checkStatus()
-            }
-        }
+        open func didWriteData(_ length: Int, from: TSTCPSocket) {
+                queueCall{
+                        self.remainWriteLength -= length
+                        let buf_size = self.tsSocket.writeBufSize()
+                        NSLog("--------->[\(TUNTCPSocket.TID)] didWriteData length [\(length)] buffer[\(buf_size)] remain[\(self.remainWriteLength)] th[\(Thread.current)]")
+            
+                        guard self.remainWriteLength <= 0 else{
+                                return
+                        }
+                        
+                        guard self.remainWriteData.count == 0 else{
+                                self.writeSig.signal()
+                                return
+                        }
+                        self.delegate?.didWrite(data: nil, by: self)
+                        self.checkStatus()
+                }
     }
 }
