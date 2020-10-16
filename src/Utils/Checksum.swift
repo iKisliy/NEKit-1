@@ -21,7 +21,7 @@ open class Checksum {
         }
         while scanner.position + 2 <= end! {
             let value = scanner.read16()!
-            result += UInt32(value)
+            (result, _) = result.addingReportingOverflow(UInt32(value))
         }
 
         if scanner.position != end {
@@ -29,7 +29,7 @@ open class Checksum {
             // Intel and ARM are both litten endian
             // so just add it
             let value = scanner.readByte()!
-            result += UInt32(value)
+            (result, _) = result.addingReportingOverflow(UInt32(value))
         }
         return result
     }
