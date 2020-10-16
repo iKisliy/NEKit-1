@@ -121,19 +121,13 @@ public class NWUDPSocket: NSObject {
             return
         }
         
-        guard !writing else {
-            return
-        }
-        
         guard pendingWriteData.count > 0 else {
             return
         }
-        
-        writing = true
-        session.writeMultipleDatagrams(self.pendingWriteData) {_ in
-            self.queueCall {
-                self.writing = false
-                self.checkWrite()
+        session.writeMultipleDatagrams(self.pendingWriteData) {err in
+            if err != nil{
+                NSLog("--------->%%%%%%%%[\(TUNTCPSocket.TID)<--->\(Thread.current)] writeMultipleDatagrams error\(err!)")
+                self.disconnect()
             }
         }
         self.pendingWriteData.removeAll(keepingCapacity: true)
