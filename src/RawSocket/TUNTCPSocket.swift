@@ -79,7 +79,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
      The socket will disconnect elegantly after any queued writing data are successfully sent.
      */
     public func disconnect() {
-        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] disconnect")
+//        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] disconnect")
         if !isConnected {
             delegate?.didDisconnectWith(socket: self)
         } else {
@@ -93,7 +93,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
      Disconnect the socket immediately.
      */
     public func forceDisconnect() {
-        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] forceDisconnect")
+//        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] forceDisconnect")
         if !isConnected {
             delegate?.didDisconnectWith(socket: self)
         } else {
@@ -112,10 +112,10 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
         
         self.writeQueue.async {
             
-            NSLog("---------> Create new socket [\(TUNTCPSocket.TID)] th[\(Thread.current)]")
-                defer{
-                        NSLog("---------> ******Thread exit [\(TUNTCPSocket.TID)] th[\(Thread.current)]")
-                }
+//            NSLog("---------> Create new socket [\(TUNTCPSocket.TID)] th[\(Thread.current)]")
+//                defer{
+//                        NSLog("---------> ******Thread exit [\(TUNTCPSocket.TID)] th[\(Thread.current)]")
+//                }
             while true{
                 
                 self.writeSig.wait()
@@ -142,7 +142,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
                 self.queueCall{self.tsSocket.writeData(slice)}
                 self.remainWriteData.removeSubrange(0 ..< self.sliceSize)
                 self.writeLock.unlock()
-                NSLog("--------->[\(TUNTCPSocket.TID)] write slice[\(self.sliceSize)] remain[\(self.remainWriteData.count)] th[\(Thread.current)]")
+//                NSLog("--------->[\(TUNTCPSocket.TID)] write slice[\(self.sliceSize)] remain[\(self.remainWriteData.count)] th[\(Thread.current)]")
             }
         }
     }
@@ -155,7 +155,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
                         self.tsSocket.writeData(data)
                         self.sliceSize = data_size
                         self.writeLock.unlock()
-                        NSLog("--------->direct start write[\(data_size) [\(TUNTCPSocket.TID)<--->\(Thread.current)]] ")
+//                        NSLog("--------->direct start write[\(data_size) [\(TUNTCPSocket.TID)<--->\(Thread.current)]] ")
                         return
                 }
                 
@@ -165,7 +165,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
                 self.remainWriteData.append(data[buf_size ..< data_size])
                 self.writeLock.unlock()
                 self.writeSig.signal()
-                NSLog("---------> ****** split start write[\(buf_size)  remains[\(self.remainWriteData.count)] [\(TUNTCPSocket.TID)<--->\(Thread.current)]] ")
+//                NSLog("---------> ****** split start write[\(buf_size)  remains[\(self.remainWriteData.count)] [\(TUNTCPSocket.TID)<--->\(Thread.current)]] ")
         }
         
         open func didWriteData(_ length: Int, from: TSTCPSocket) {
@@ -173,7 +173,7 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
                 self.sliceSize -= length
                 if self.sliceSize > 0{
                         self.writeLock.unlock()
-                        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] remaind to process [\(self.sliceSize)] length[\(length)]")
+//                        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] remaind to process [\(self.sliceSize)] length[\(length)]")
                         return
                 }
             
@@ -183,12 +183,12 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
                                 self.delegate?.didWrite(data: nil, by: self)
                                 self.checkStatus()
                         }
-                        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] ******finished write[\(length)]......")
+//                        NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] ******finished write[\(length)]......")
                         return
                 }
                 self.writeLock.unlock()
                 self.writeSig.signal()
-                NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] go on cached size[\(self.remainWriteData.count)]")
+//                NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] go on cached size[\(self.remainWriteData.count)]")
         }
 
     /**
@@ -285,10 +285,10 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
         self.writeLock.lock()
         defer {self.writeLock.unlock()}
         if closeAfterWriting && self.remainWriteData.count == 0 {
-                NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] checkStatus need to close")
+//                NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] checkStatus need to close")
             forceDisconnect()
         }else{
-                NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] checkStatus can't to close [\(closeAfterWriting)] cache[\(self.remainWriteData.count)]")
+//                NSLog("--------->[\(TUNTCPSocket.TID)<--->\(Thread.current)] checkStatus can't to close [\(closeAfterWriting)] cache[\(self.remainWriteData.count)]")
         }
     }
 
