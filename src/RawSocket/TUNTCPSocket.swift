@@ -158,7 +158,12 @@ public class TUNTCPSocket: RawTCPSocketProtocol, TSTCPSocketDelegate {
 //                        NSLog("--------->direct start write[\(data_size) [\(TUNTCPSocket.TID)<--->\(Thread.current)]] ")
                         return
                 }
-                
+                if buf_size == 0{
+                        self.remainWriteData.append(data)
+                        self.writeLock.unlock()
+                        return
+                }
+            
                 let slice = data.prefix(buf_size)
                 self.sliceSize = slice.count
                 self.tsSocket.writeData(slice)
